@@ -1,0 +1,62 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "blender_kb_mcp"
+version = "0.1.0"
+description = "Blender Knowledge Base Document Ingest + MCP Server"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "chromadb",
+    "beautifulsoup4",
+    "trafilatura",
+    "langchain-text-splitters",
+    "tqdm",
+    "ollama",
+    "lxml",
+    "mcp",
+    "pydantic",
+]
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-cov",
+    "pytest-mock",
+]
+
+[project.scripts]
+blender-kb-mcp = "mcp.blender_mcp:main"
+blender-kb-ingest = "src.ingest.ingest_docs:main"
+blender-kb-query = "src.ingest.query"
+
+[tool.blender_kb_mcp.db]
+DB_NAME = "./db/blender_docs_chromadb"
+COLLECTION_NAME = "blender_api"
+METADATA_USE = true
+METADATA_VERSION = "5.1"
+
+[tool.blender_kb_mcp.llm]
+# MODEL_NAME = "qwen3-embedding:4b"
+MODEL_NAME = "qwen3-embedding:0.6b"
+
+[tool.blender_kb_mcp.query]
+RESPONSE_TYPE = "embeddings"
+TOTAL_RESULTS = 30
+CONTENT_LENGTH = 200
+SIMILARITY_THRESHOLD = 0.01
+
+[tool.blender_kb_mcp.ingest]
+DOC_PATHS = [
+    "./tmp/kb/blender_python_reference_5_1_test",
+]
+CLEAN_ALG = "traf"
+BATCH_SIZE = 50
+
+[tool.blender_kb_mcp.formats]
+ENABLE_MARKDOWN = true
+ENABLE_HTML = true
+ALLOWED_EXTENSIONS = [".html", ".htm", ".md", ".markdown"]
+FORMAT_FALLBACK = "traf"
+
