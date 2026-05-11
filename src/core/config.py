@@ -32,6 +32,10 @@ class FormatOption(BaseModel):
     ALLOWED_EXTENSIONS: list[str] = []
     FORMAT_FALLBACK: str = "traf"
 
+class ServerOption(BaseModel):
+    TRANSPORT: str = ""
+    HOST: str = ""
+    PORT: str = ""
 
 class AppConfig(BaseModel):
     model_config = ConfigDict(extra="allow", frozen=True)
@@ -41,6 +45,7 @@ class AppConfig(BaseModel):
     llm: LlmOption = LlmOption()
     query: QueryOption = QueryOption()
     formats: FormatOption = FormatOption()
+    server: ServerOption = ServerOption()
     debug: bool = False
 
 
@@ -95,3 +100,6 @@ def get_query_options() -> Optional[QueryOption]:
     env = get_appconfig()
     return env.query if env else None
 
+def get_server_options() -> Optional[ServerOption]:
+    env = get_appconfig()
+    return env.server if env else None

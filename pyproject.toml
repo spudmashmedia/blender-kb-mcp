@@ -29,7 +29,7 @@ dev = [
 [project.scripts]
 blender-kb-mcp = "mcp.blender_mcp:main"
 blender-kb-ingest = "src.ingest.ingest_docs:main"
-blender-kb-query = "src.ingest.query"
+blender-kb-query = "src.ingest.query:main"
 
 [tool.blender_kb_mcp.db]
 DB_NAME = "./db/blender_docs_chromadb"
@@ -49,7 +49,9 @@ SIMILARITY_THRESHOLD = 0.01
 
 [tool.blender_kb_mcp.ingest]
 DOC_PATHS = [
-    "./tmp/kb/blender_python_reference_5_1_test",
+    "./.tmp/kb/blender_python_reference_5_1",
+    "./.tmp/kb/blender_open_shader_lang_5_1",
+    "./.tmp/kb/blender_templates_5_1",
 ]
 CLEAN_ALG = "traf"
 BATCH_SIZE = 50
@@ -60,3 +62,7 @@ ENABLE_HTML = true
 ALLOWED_EXTENSIONS = [".html", ".htm", ".md", ".markdown"]
 FORMAT_FALLBACK = "traf"
 
+[tool.blender_kb_mcp.server]
+TRANSPORT = "http"
+HOST = "127.0.0.1"
+PORT = "8000"
