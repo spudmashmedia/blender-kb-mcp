@@ -1,4 +1,7 @@
 from __future__ import annotations
+import signal
+import atexit
+import sys
 import ollama
 from typing import Optional
 from chromadb import Client, Collection
@@ -48,10 +51,30 @@ def search_blender_api(query: str) -> str:
     except Exception as e:
         return f"Error accessing Blender Docs: {str(e)}"
 
+def _handle_shutdown(signum, frame):
+    _db_cleanup()
+    sys.exit(0)
+
+def _db_cleanup():
+    global db_ctx, collection
+    try:
+        if db_ctx:
+            if hasattr(db_ctx, "close"):
+                db_ctx.close()
+            elif hasattr(db_ctx, "__exit__"):
+                pass
+        print("Database connection closed")
+    except Exception as e:
+        print(f"Error during DB Cleanup: {e}")
+
 def main():
     print(f"Hello")
 
     global db_config, llm_config, server_config, db_ctx, collection
+
+    signal.signal(signal.SIGINT, _handle_shutdown)
+    signal.signal(signal.SIGTERM, _handle_shutdown)
+    atexit.register(_db_cleanup)
 
     llm_config = get_llm_options()
     if not llm_config:
