@@ -1,40 +1,4 @@
-[build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
-
-[project]
-name = "blender_kb_mcp"
-version = "0.1.0"
-description = "Blender Knowledge Base Document Ingest + MCP Server"
-readme = "README.md"
-requires-python = ">=3.11"
-dependencies = [
-    "chromadb",
-    "beautifulsoup4",
-    "trafilatura",
-    "langchain-text-splitters",
-    "tqdm",
-    "ollama",
-    "lxml",
-    "mcp",
-    "pydantic",
-    "dotenv",
-]
-[project.optional-dependencies]
-dev = [
-    "pytest",
-    "pytest-cov",
-    "pytest-mock",
-    "pip-tools",
-]
-
-[project.scripts]
-blender-kb-mcp = "mcp.blender_mcp:main"
-blender-kb-ingest = "src.ingest.ingest_docs:main"
-blender-kb-query = "src.ingest.query:main"
-
 [tool.blender_kb_mcp.db]
-LOCAL_DB = true
 DB_NAME = "./db/blender_docs_chromadb"
 COLLECTION_NAME = "blender_api"
 METADATA_USE = true
@@ -45,7 +9,6 @@ PORT = 8000
 [tool.blender_kb_mcp.llm]
 MODEL_NAME = "qwen3-embedding:0.6b"
 HOST = "127.0.0.1"
-PORT = 11434
 
 [tool.blender_kb_mcp.query]
 RESPONSE_TYPE = "embeddings"

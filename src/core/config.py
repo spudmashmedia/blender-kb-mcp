@@ -2,6 +2,8 @@ import tomllib
 from pathlib import Path
 from typing import Optional, Any
 from pydantic import BaseModel, ConfigDict
+import os
+from dotenv import load_dotenv
 
 # ============================================================================
 # Configuration
@@ -11,6 +13,9 @@ class DbOption(BaseModel):
     COLLECTION_NAME: str=""
     METADATA_USE: bool = False
     METADATA_VERSION: str = "1.0"    
+    LOCAL_DB: bool = False
+    HOST: str = "127.0.0.1"
+    PORT: int = 8000
 
 class IngestOption(BaseModel):
     DOC_PATHS: list[str]=[]
@@ -19,6 +24,8 @@ class IngestOption(BaseModel):
 
 class LlmOption(BaseModel):
     MODEL_NAME: str=""
+    HOST: str = "127.0.0.1"
+    PORT: int = 11434
 
 class QueryOption(BaseModel):
     RESPONSE_TYPE: str= "embeddings"
@@ -48,24 +55,32 @@ class AppConfig(BaseModel):
     server: ServerOption = ServerOption()
     debug: bool = False
 
+def get_config_path() -> Path:
+    load_dotenv()
+    env_profile = os.getenv("APP_ENV", "local")
+
+    root_dir = Path(__file__).parent.parent.parent
+    pyproject_config_path = root_dir/ "pyproject.toml"
+    profile_config_path = root_dir / "config" / f"config_{env_profile}.toml"
+    base_config_path = root_dir / "config" / "config.toml"
+
+    target_config_path = None
+    
+    if pyproject_config_path.exists():
+        target_config_path = pyproject_config_path
+    elif profile_config_path.exists():
+        target_config_path = profile_config_path
+    elif base_config_path.exists():
+        target_config_path = base_config_path
+    else:
+        raise FileNotFoundError(f"No configuration file found. Check {root_dir}/config/ and {root_dir}/pyproject.toml")
+
+    return target_config_path
 
 def get_appconfig() -> Optional[AppConfig]:
-    """
-    Load configuration from config.toml.
-    
-    Path resolution:
-    - This file: /src/core/config.py
-    - Parent: /src/core/
-    - Grandparent: /src/
-    - Root: / (contains config/ folder)
-    """
-    root_dir = Path(__file__).parent.parent.parent
-    config_path = root_dir / "config" / "config.toml"
-    
-    # Check for pyproject.toml if config.toml is missing
-    if not config_path.exists():
-        config_path = root_dir / "pyproject.toml"
-    
+
+    config_path = get_config_path()
+              
     try:
         with config_path.open("rb") as f:
             full_config = tomllib.load(f)
