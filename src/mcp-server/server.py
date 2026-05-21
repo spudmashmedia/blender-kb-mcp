@@ -2,36 +2,45 @@ from __future__ import annotations
 import signal
 import atexit
 import sys
+import os
 import ollama
-from typing import Optional
+from typing import Any, Optional
 from chromadb import Client, Collection
 from src.core.config import get_db_options, DbOption, QueryOption, get_llm_options, LlmOption, get_server_options, ServerOption
-from src.core.db import db_init
+from src.core.db import db_init, db_init_hc
 from mcp.server.fastmcp import FastMCP
 
+
+ENV_SERVER_HOST = os.getenv("FASTMCP_HOST", "127.0.0.1")
+ENV_SERVER_PORT = os.getenv("FASTMCP_PORT", "8000")
 # Initialize MCP
-mcp = FastMCP("Blender-5.1-API")
+mcp = FastMCP("Blender-5.1-API", host=ENV_SERVER_HOST, port=int(ENV_SERVER_PORT), stateless_http=True)
 
 # Globals
 db_config: Optional[DbOption] = None
 llm_config: Optional[LlmOption] = None
 server_config: Optional[ServerOption] = None
-db_ctx = None
+db_ctx: Optional[Any] = None
 collection: Optional[Collection] = None
+ollama_ctx: Optional[Any] = None
 
 @mcp.tool()
 def search_blender_api(query: str) -> str:
     """
-    Search the Blender 5.1 Python API documentation. 
-    Use this to find bpy.types, operators, and code samples.
+    Search the Blender Python API documentation. 
     """
+    if not ollama_ctx:
+        return "Error: Ollama not initialised"
+    if not collection:
+        return "Error: ChromaDB collection unavailable"
+
     try:
-        # 2. Generate Embedding for the query using Ollama
+        # Generate Embedding for the query using Ollama
         # This MUST match the model used during ingestion
-        response = ollama.embed(model=llm_config.MODEL_NAME, input=[query])
+        response = ollama_ctx.embed(model=llm_config.MODEL_NAME, input=[query])
         query_embedding = response["embeddings"][0]
 
-        # 3. Query ChromaDB
+        # Query ChromaDB
         results = collection.query(
             query_embeddings=[query_embedding],
             n_results=5
@@ -40,7 +49,7 @@ def search_blender_api(query: str) -> str:
         if not results['documents'][0]:
             return "No matching documentation found."
 
-        # 4. Format for the Agent
+        # Format for the Agent
         output = [f"### Results for: {query}\n"]
         for doc, meta in zip(results['documents'][0], results['metadatas'][0]):
             source = meta.get('source', 'Unknown')
@@ -68,9 +77,9 @@ def _db_cleanup():
         print(f"Error during DB Cleanup: {e}")
 
 def main():
-    print(f"Hello")
+    print(f"[Server] Init")
 
-    global db_config, llm_config, server_config, db_ctx, collection
+    global db_config, llm_config, server_config, db_ctx, collection, ollama_ctx
 
     signal.signal(signal.SIGINT, _handle_shutdown)
     signal.signal(signal.SIGTERM, _handle_shutdown)
@@ -90,14 +99,15 @@ def main():
         print(f"Error Loading ServerOption Configuration")
         return
 
+    if llm_config.HOST:
+        ollama_ctx = ollama.Client(host=llm_config.HOST)
+
     db_ctx, collection = db_init(db_config)
     print(f"Connected to ChromaDB collection {collection.name}")
-
 
     if db_ctx and collection:
         print(f"MCP server has started on {server_config.HOST}:{server_config.PORT} using transport[{server_config.TRANSPORT}]")   
         mcp.run(transport="streamable-http")
-
 
 if __name__ == "__main__":
     main()

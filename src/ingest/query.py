@@ -13,7 +13,7 @@ import chromadb
 import ollama
 import tomllib
 from src.core.config import AppConfig, get_appconfig
-from src.core.db import db_init
+from src.core.db import db_init, db_init_hc
 # ============================================================================
 # Query Preprocessing (FIXED - Match Document Cleaning!)
 # ============================================================================
@@ -189,6 +189,7 @@ def main() -> None:
         verify_integrity(config)  # Add this function (see below)
         return
     
+    # client, collection = db_init(config.db)
     client, collection = db_init(config.db)
     
     # Get query from command line or use default for testing
