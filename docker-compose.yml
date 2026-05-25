@@ -6,7 +6,7 @@ services:
     ports:
       - ":8000"
     volumes:
-      - ./db/blender_docs_chromadb:/data
+      - ./build/db/blender_docs_chromadb:/data
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/v2/heartbeat"]
       interval: 30s
