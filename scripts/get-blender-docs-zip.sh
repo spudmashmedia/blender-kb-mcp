@@ -1,11 +1,12 @@
-#!/bin/bash
-set -euo pipefail
+#!/usr/bin/env bash
+set -o pipefail
 
 # Configuration
 TARGET_URL="https://docs.blender.org/api/current/blender_python_reference_5_1.zip"
 BUILD_DIR_NAME="${BUILD_DIR_NAME:-build}"  # Default to 'build', can be overridden
 DEST_BASE="${PWD}/${BUILD_DIR_NAME}/kb"    # Relative to current directory
-DEST_DIR="${DEST_BASE}/blender_python_reference_5_1"
+# DEST_DIR="${DEST_BASE}/blender_python_reference_5_1"
+DEST_DIR="${DEST_BASE}"
 TEMP_ZIP="/tmp/blender_docs_temp.zip"
 CLEAN_MODE=false
 
@@ -19,7 +20,8 @@ while [[ $# -gt 0 ]]; do
         --build-dir|-b)
             BUILD_DIR_NAME="$2"
             DEST_BASE="${PWD}/${BUILD_DIR_NAME}/kb"
-            DEST_DIR="${DEST_BASE}/blender_python_reference_5_1"
+            # DEST_DIR="${DEST_BASE}/blender_python_reference_5_1"
+            DEST_DIR="${DEST_BASE}"
             shift 2
             ;;
         -h|--help)

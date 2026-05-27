@@ -16,14 +16,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libffi-dev \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /app
+WORKDIR /builder
 
 # Copy dependency files first for better caching
-COPY pyproject.toml ./
-
+COPY ./src ./src
+COPY ./scripts ./scripts
+COPY ./config ./config
+COPY ./pyproject.toml ./
+ 
 # Install Python dependencies
 RUN pip install --upgrade pip setuptools wheel
-RUN pip install .[dev]
+RUN pip wheel --wheel-dir=/builder/wheels .
 
 # =============================================================================
 # Production Stage (Multi-stage build)
@@ -40,12 +43,14 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 # Copy only necessary files from builder
-COPY --from=builder /usr/local/lib/python3.12/site-packages/ /usr/local/lib/python3.12/site-packages/
-COPY --from=builder /usr/local/bin/ /usr/local/bin/
-# COPY . ./
+COPY --from=builder /builder/wheels /app/wheels
+RUN pip install --no-index --find-links=/app/wheels /app/wheels/*.whl && \
+    rm -rf /app/wheels
 
-COPY ./src ./src
-COPY ./config/config_prod.toml ./config/
+# Copy MCP Server Code
+COPY --from=builder /builder/src/core/ ./src/core/
+COPY --from=builder /builder/src/mcp-server/ ./src/mcp-server/
+COPY --from=builder /builder/config/config_prod.toml ./config/
 
 # Create non-root user for security
 RUN useradd -m -u 1000 appuser && \

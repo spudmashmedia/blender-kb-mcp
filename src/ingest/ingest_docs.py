@@ -23,6 +23,11 @@ from src.core.config import AppConfig, IngestOption, DbOption, get_appconfig, ge
 from src.core.db import db_init
 from src.ingest.parser import get_parser
 
+
+# GLOBALS
+ollama_ctx: Optional[Any] = None
+
+
 # ============================================================================
 # File Hashing & Deduplication (NEW!)
 # ============================================================================
@@ -94,7 +99,7 @@ def get_all_files(root_path: str) -> List[Tuple[str, str]]:
 
 def get_ingestion_state_file(config: dict[str, Any]) -> str:
     """Get path to state tracking file."""
-    db_path = config.get("db", {}).get("DB_NAME", "./db/blender_docs_chromadb")
+    db_path = config.get("db", {}).get("DB_NAME", config.db.DB_NAME)
     return os.path.join(db_path, "ingestion_state.json")
 
 def load_ingestion_state() -> dict[str, Any]:
@@ -248,7 +253,7 @@ def ingest_documents(config: AppConfig, skip_dedup: bool = False) -> None:
                 batch_texts = chunks[i : i + config.ingest.BATCH_SIZE]
                 
                 try:
-                    response = ollama.embed(
+                    response = ollama_ctx.embed(
                         model=config.llm.MODEL_NAME, 
                         input=batch_texts
                     )
@@ -390,6 +395,7 @@ def verify_integrity(config: AppConfig) -> None:
 def main() -> None:
     """Main entry point."""
     import sys
+    global ollama_ctx
     
     print("\n" + "=" * 60)
     print("🚀 Starting Multi-Format Blender 5.1 Ingestion...")
@@ -400,6 +406,12 @@ def main() -> None:
     if not config:
         print(f"⚠️ No configuration found, exiting.")
         return
+
+    if not config.llm:
+        print(f"⚠️ No LLM configuration found, exiting.")
+
+    ollama_ctx = ollama.Client(host=config.llm.HOST)
+
     
     # Check for command line arguments
     args = sys.argv[1:]

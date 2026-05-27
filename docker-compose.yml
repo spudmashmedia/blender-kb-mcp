@@ -1,5 +1,23 @@
 name: blender-kb
 services:
+  # ingest:
+  #   build:
+  #     context: .
+  #     dockerfile: ./src/ingest/ingest.Dockerfile
+  #   container_name: blender-kb-ingest
+  #   volumes:
+  #     - ingest_data:/app               
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     - APP_ENV=ingest
+  #   restart: unless-stopped
+  #   networks:
+  #     - blender-kb-network
+  #   depends_on:
+  #     ollama:
+  #       condition: service_healthy
+
   chromadb:
     image: chromadb/chroma
     container_name: blender-kb-chromadb
@@ -18,14 +36,16 @@ services:
       - blender-kb-network
 
   ollama:
-    image: ollama/ollama:latest
+    build:
+      context: .
+      dockerfile: ./src/ollama/ollama.Dockerfile
     container_name: blender-kb-ollama
     ports:
-      - ":11434"
+      - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama               
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:11434/api/tags || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://0.0.0.0:11434/api/tags || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -35,7 +55,9 @@ services:
       - blender-kb-network
 
   mcp-server:
-    build: .
+    build:
+      context: .
+      dockerfile: ./src/mcp-server/mcp.Dockerfile
     container_name: blender-kb-mcp
     ports:
       - "8000:8000"
@@ -46,10 +68,15 @@ services:
     restart: unless-stopped
     networks:
       - blender-kb-network
+    depends_on:
+      ollama:
+        condition: service_healthy
 
 networks:
   blender-kb-network:
     driver: bridge
 
 volumes:
+  ingest_data:
+  chromadb_data:
   ollama_data:
