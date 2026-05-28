@@ -1,5 +1,5 @@
 # =============================================================================
-# Dockerfile for Blender KB Ollama
+# Dockerfile for Blender KB - Ollama
 # =============================================================================
 
 FROM ollama/ollama:latest
