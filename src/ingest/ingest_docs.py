@@ -8,6 +8,7 @@ import os
 import re
 import hashlib
 from pathlib import Path
+import shutil
 from typing import Optional, Any, List, Tuple, Set
 import json
 
@@ -19,14 +20,14 @@ import ollama
 from tqdm import tqdm
 import tomllib
 
-from src.core.config import AppConfig, IngestOption, DbOption, get_appconfig, get_db_options, get_ingest_options
+from src.core.config import AppConfig, IngestOption, DbOption, get_appconfig, get_db_options, get_ingest_options, get_llm_options
 from src.core.db import db_init
 from src.ingest.parser import get_parser
 
 
 # GLOBALS
 ollama_ctx: Optional[Any] = None
-
+config: Optional[AppConfig] = None
 
 # ============================================================================
 # File Hashing & Deduplication (NEW!)
@@ -103,14 +104,10 @@ def get_ingestion_state_file(config: dict[str, Any]) -> str:
     return os.path.join(db_path, "ingestion_state.json")
 
 def load_ingestion_state() -> dict[str, Any]:
-    """Load previous ingestion state from disk."""
-    import json
-    
+    """Load previous ingestion state from disk."""   
     # Try to find the state file in any possible location
     possible_paths = [
-        "./db/ingestion_state.json",
-        "../db/ingestion_state.json",
-        "config/ingestion_state.json"
+        f"{config.db.DB_NAME}/{config.ingest.STATE_FILE_NAME}",
     ]
     
     for path in possible_paths:
@@ -124,15 +121,48 @@ def load_ingestion_state() -> dict[str, Any]:
     return {}
 
 def save_ingestion_state(state: dict[str, Any]) -> None:
-    """Save ingestion state to disk."""
-    import json
-    
+    """Save ingestion state to disk."""   
     # Save in the same directory as DB if possible
     try:
-        with open("./db/ingestion_state.json", "w") as f:
+        with open(f"{config.db.DB_NAME}/{config.ingest.STATE_FILE_NAME}", "w") as f:
             json.dump(state, f, indent=2)
     except Exception as e:
         print(f"⚠️ Could not save state file: {e}")
+
+def archive_file(file_path: str, source_root: str, archive_root: str) -> bool:
+    """Move processed file to archive safely."""
+    try:
+        # Calculate relative path from THIS source root (not a common ancestor)
+        rel_path = os.path.relpath(file_path, source_root)
+        
+        # Construct destination path in archive
+        dest_file = Path(archive_root) / rel_path
+        
+        # Ensure parent directories exist
+        dest_file.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Move file
+        shutil.move(file_path, str(dest_file))
+        return True
+        
+    except Exception as e:
+        print(f"⚠️ Failed to archive {file_path}: {e}")
+        return False
+
+def clear_folder_contents(path: str) -> None:
+    """Equivalent to 'rm -rf <path>/*' but safer for Docker volumes."""
+    folder = Path(path)
+    if not folder.exists(): 
+        return
+        
+    for item in folder.iterdir():
+        try:
+            if item.is_file():
+                item.unlink()  # Remove file
+            elif item.is_dir():
+                shutil.rmtree(item)  # Remove subfolder recursively
+        except Exception as e:
+            print(f"⚠️ Failed to remove {item}: {e}")
 
 def check_for_orphans(collection: Any) -> int:
     """Check for and report orphaned chunks."""
@@ -162,7 +192,7 @@ def check_for_orphans(collection: Any) -> int:
     
     return len(existing_sources)
 
-def ingest_documents(config: AppConfig, skip_dedup: bool = False) -> None:
+def ingest_documents(skip_dedup: bool = False) -> None:
     """Main document ingestion pipeline with orphan prevention."""
     
     # 📚 Get list of document directories from config
@@ -180,7 +210,7 @@ def ingest_documents(config: AppConfig, skip_dedup: bool = False) -> None:
         return
     
     # ⚡ Pre-scan ALL source files before ingestion starts
-    all_files: List[Tuple[str, str, str]] = []  # (file_path, format_type, file_hash)
+    all_files: List[Tuple[str, str, str, str]] = []  # (file_path, format_type, file_hash, source_root)
     valid_paths = 0
     skipped_duplicate = 0
     
@@ -206,7 +236,7 @@ def ingest_documents(config: AppConfig, skip_dedup: bool = False) -> None:
                     skipped_duplicate += 1
                     continue
             
-            all_files.append((file_path, fmt_type, file_hash))
+            all_files.append((file_path, fmt_type, file_hash, doc_path))
         
         valid_paths += 1
     
@@ -215,8 +245,8 @@ def ingest_documents(config: AppConfig, skip_dedup: bool = False) -> None:
         print(f"\n❌ Error: None of the configured paths exist!")
         return
         
-    html_count = sum(1 for _, fmt, _ in all_files if fmt == "html")
-    md_count = sum(1 for _, fmt, _ in all_files if fmt == "markdown")
+    html_count = sum(1 for _, fmt, _, _ in all_files if fmt == "html")
+    md_count = sum(1 for _, fmt, _, _ in all_files if fmt == "markdown")
     
     print(f"📁 Found {len(all_files)} files across {valid_paths} directories:")
     print(f"   ├─ HTML:  {html_count}")
@@ -234,7 +264,7 @@ def ingest_documents(config: AppConfig, skip_dedup: bool = False) -> None:
     ingested_hashes: List[str] = []
     
     # 🚀 PROCESS ALL FILES (The Speed Fix)
-    for file_path, format_type, file_hash in tqdm(all_files, desc="Ingesting Docs"):
+    for file_path, format_type, file_hash, source_root in tqdm(all_files, desc="Ingesting Docs"):
         parser = get_parser(format_type, config.ingest.CLEAN_ALG)
         
         try:
@@ -280,6 +310,10 @@ def ingest_documents(config: AppConfig, skip_dedup: bool = False) -> None:
                 
             ingested_hashes.append(file_hash)
                     
+            # Archive File
+            if not archive_file(file_path, source_root, config.ingest.ARCHIVE_PATH):
+                print(f"⚠️ Warning: File {file_path} failed to archive but was processed.")
+
         except Exception as e:
             print(f"❌ Error processing {file_path} ({format_type}): {e}")
 
@@ -290,6 +324,10 @@ def ingest_documents(config: AppConfig, skip_dedup: bool = False) -> None:
         "total_files_processed": len(all_files),
         "collection_name": f"{config.db.COLLECTION_NAME}_{config.db.METADATA_VERSION}"
     })
+
+    # Clear /data/raw folder
+    for path in doc_paths:
+        clear_folder_contents(path)    
 
     print(f"\n🎉 Ingestion Complete! {collection.count()} total records stored.")
     
@@ -344,7 +382,7 @@ def cleanup_orphaned_chunks(config: AppConfig) -> int:
         print(f"❌ Cleanup failed: {e}")
         return 0
 
-def verify_integrity(config: AppConfig) -> None:
+def verify_integrity() -> None:
     """Verify database integrity."""
 
     client, collection = db_init(config.db)
@@ -395,7 +433,7 @@ def verify_integrity(config: AppConfig) -> None:
 def main() -> None:
     """Main entry point."""
     import sys
-    global ollama_ctx
+    global config, ollama_ctx
     
     print("\n" + "=" * 60)
     print("🚀 Starting Multi-Format Blender 5.1 Ingestion...")
@@ -410,8 +448,10 @@ def main() -> None:
     if not config.llm:
         print(f"⚠️ No LLM configuration found, exiting.")
 
-    ollama_ctx = ollama.Client(host=config.llm.HOST)
+    if not config.ingest:
+        print(f"⚠️ No Ingest configuration found, exiting.")
 
+    ollama_ctx = ollama.Client(host=config.llm.HOST)
     
     # Check for command line arguments
     args = sys.argv[1:]
@@ -427,10 +467,10 @@ def main() -> None:
         print(f"\n✅ Cleanup complete. Removed {orphan_count} orphaned records.\n")
     
     if "--verify" in args or "-v" in args:
-        verify_integrity(config)
+        verify_integrity()
         return
     
-    ingest_documents(config, skip_dedup=skip_dedup)
+    ingest_documents(skip_dedup=skip_dedup)
 
 if __name__ == "__main__":
     main()

@@ -21,6 +21,8 @@ class IngestOption(BaseModel):
     DOC_PATHS: list[str]=[]
     CLEAN_ALG: str="traf"
     BATCH_SIZE: int=10
+    ARCHIVE_PATH: str=""
+    STATE_FILE_NAME: str="ingestion_state.json"
 
 class LlmOption(BaseModel):
     MODEL_NAME: str=""

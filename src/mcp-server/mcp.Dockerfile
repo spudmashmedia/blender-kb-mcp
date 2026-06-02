@@ -50,7 +50,7 @@ RUN pip install --no-index --find-links=/app/wheels /app/wheels/*.whl && \
 # Copy MCP Server Code
 COPY --from=builder /builder/src/core/ ./src/core/
 COPY --from=builder /builder/src/mcp-server/ ./src/mcp-server/
-COPY --from=builder /builder/config/config_prod.toml ./config/
+COPY --from=builder /builder/config/config_mcp.toml ./config/
 
 # Create non-root user for security
 RUN useradd -m -u 1000 appuser && \

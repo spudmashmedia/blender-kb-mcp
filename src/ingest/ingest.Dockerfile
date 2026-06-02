@@ -47,6 +47,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     unzip \
     vim \
+    rsync \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -61,14 +62,10 @@ COPY --from=builder /builder/src/core/ ./src/core/
 COPY --from=builder /builder/src/ingest/ ./src/ingest/
 COPY --from=builder /builder/config/config_ingest.toml ./config/
 COPY --from=builder /builder/scripts/get-blender-docs-zip.sh ./scripts/
+COPY --from=builder /builder/scripts/run-ingest.sh ./scripts/
 
-# Expose the MCP server port (default 8000)
-EXPOSE 8000
+RUN chmod +x ./scripts/get-blender-docs-zip.sh
+RUN chmod +x ./scripts/run-ingest.sh
 
-# Health check (optional, requires curl)
-# HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    # CMD curl -f http://localhost:${MCP_SERVER_PORT}/health || exit 1
-
-# Entry point to run the MCP server
-CMD ["python", "-m", "http.server", "3000"]
-
+# Entry point to run ingest runner
+ENTRYPOINT ["/app/scripts/run-ingest.sh"]

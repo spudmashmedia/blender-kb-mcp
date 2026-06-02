@@ -1,22 +1,24 @@
 name: blender-kb
 services:
-  # ingest:
-  #   build:
-  #     context: .
-  #     dockerfile: ./src/ingest/ingest.Dockerfile
-  #   container_name: blender-kb-ingest
-  #   volumes:
-  #     - ingest_data:/app               
-  #   ports:
-  #     - "3000:3000"
-  #   environment:
-  #     - APP_ENV=ingest
-  #   restart: unless-stopped
-  #   networks:
-  #     - blender-kb-network
-  #   depends_on:
-  #     ollama:
-  #       condition: service_healthy
+  ingest:
+    build:
+      context: .
+      dockerfile: ./src/ingest/ingest.Dockerfile
+    container_name: blender-kb-ingest
+    volumes:
+      - ingest_data:/app               
+      # - ./data/vectors:/app/data/vectors
+      # - ./data/raw:/app/data/raw
+      - ./data:/app/data
+    # ports:
+    #   - "3000:3000"
+    environment:
+      - APP_ENV=ingest
+      - DB_ROOT= /app/data/vectors/blender_api_index
+      - PYTHONUNBUFFERED=1
+    networks:
+      - blender-kb-network
+    profiles: ["manual"]
 
   chromadb:
     image: chromadb/chroma
@@ -24,7 +26,7 @@ services:
     ports:
       - ":8000"
     volumes:
-      - ./build/db/blender_docs_chromadb:/data
+      - ./data/vectors/blender_api_index:/data
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/v2/heartbeat"]
       interval: 30s
@@ -40,8 +42,8 @@ services:
       context: .
       dockerfile: ./src/ollama/ollama.Dockerfile
     container_name: blender-kb-ollama
-    ports:
-      - "11434:11434"
+    # ports:
+    #   - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama               
     healthcheck:
@@ -62,7 +64,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - APP_ENV=prod
+      - APP_ENV=mcp
       - FASTMCP_HOST=0.0.0.0
       - FASTMCP_PORT=8000
     restart: unless-stopped
@@ -71,12 +73,15 @@ services:
     depends_on:
       ollama:
         condition: service_healthy
+    volumes:
+      - temp_data:/data
 
 networks:
   blender-kb-network:
     driver: bridge
 
 volumes:
+  temp_data:
   ingest_data:
   chromadb_data:
   ollama_data:
