@@ -40,6 +40,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PYTHONPATH=/app:${PYTHONPATH}
 
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 # Copy only necessary files from builder
@@ -50,7 +54,7 @@ RUN pip install --no-index --find-links=/app/wheels /app/wheels/*.whl && \
 # Copy MCP Server Code
 COPY --from=builder /builder/src/core/ ./src/core/
 COPY --from=builder /builder/src/mcp-server/ ./src/mcp-server/
-COPY --from=builder /builder/config/config_mcp.toml ./config/
+COPY --from=builder /builder/config/config_mcp_ollama_host.toml ./config/
 
 # Create non-root user for security
 RUN useradd -m -u 1000 appuser && \
@@ -61,10 +65,6 @@ USER appuser
 
 # Expose the MCP server port (default 8000)
 EXPOSE 8000
-
-# Health check (optional, requires curl)
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:${MCP_SERVER_PORT}/health || exit 1
 
 # Entry point to run the MCP server
 CMD ["python", "-m", "src.mcp-server.server"]
