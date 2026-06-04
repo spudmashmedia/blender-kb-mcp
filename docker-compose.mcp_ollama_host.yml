@@ -1,0 +1,43 @@
+name: blender-kb
+services:
+  chromadb:
+    image: chromadb/chroma
+    container_name: blender-kb-chromadb
+    # ports:
+    #   - ":8000"
+    volumes:
+      - ./data/vectors/blender_api_index:/data
+    restart: unless-stopped
+    networks:
+      - blender-kb-network
+
+  mcp-server:
+    build:
+      context: .
+      dockerfile: ./src/mcp-server/mcp_ollama_host.Dockerfile
+    container_name: blender-kb-mcp
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_ENV=mcp_ollama_host
+      - FASTMCP_HOST=0.0.0.0
+      - FASTMCP_PORT=8000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://host.docker.internal:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - blender-kb-network
+    depends_on:
+      chromadb:
+        condition: service_started
+
+networks:
+  blender-kb-network:
+    driver: bridge
+
+volumes:
+  chromadb_data:

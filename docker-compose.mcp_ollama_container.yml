@@ -6,26 +6,20 @@ services:
     ports:
       - ":8000"
     volumes:
-      - ./db/blender_docs_chromadb:/data
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v2/heartbeat"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 10s
+      - ./data/vectors/blender_api_index:/data
     restart: unless-stopped
     networks:
       - blender-kb-network
 
   ollama:
-    image: ollama/ollama:latest
+    build:
+      context: .
+      dockerfile: ./src/ollama/ollama.Dockerfile
     container_name: blender-kb-ollama
-    ports:
-      - ":11434"
     volumes:
       - ollama_data:/root/.ollama               
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:11434/api/tags || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://0.0.0.0:11434/api/tags || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -35,21 +29,30 @@ services:
       - blender-kb-network
 
   mcp-server:
-    build: .
+    build:
+      context: .
+      dockerfile: ./src/mcp-server/mcp_ollama_container.Dockerfile
     container_name: blender-kb-mcp
     ports:
       - "8000:8000"
     environment:
-      - APP_ENV=prod
+      - APP_ENV=mcp_ollama_container
       - FASTMCP_HOST=0.0.0.0
       - FASTMCP_PORT=8000
     restart: unless-stopped
     networks:
       - blender-kb-network
+    depends_on:
+      ollama:
+        condition: service_healthy
+      chromadb:
+        condition: service_started
+
 
 networks:
   blender-kb-network:
     driver: bridge
 
 volumes:
+  chromadb_data:
   ollama_data:

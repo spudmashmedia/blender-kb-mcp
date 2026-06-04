@@ -35,7 +35,7 @@ blender-kb-query = "src.ingest.query:main"
 
 [tool.blender_kb_mcp.db]
 LOCAL_DB = true
-DB_NAME = "./db/blender_docs_chromadb"
+DB_NAME = "./data/vectors/blender_api_index"
 COLLECTION_NAME = "blender_api"
 METADATA_USE = true
 METADATA_VERSION = "5.1"
@@ -55,12 +55,16 @@ SIMILARITY_THRESHOLD = 0.01
 
 [tool.blender_kb_mcp.ingest]
 DOC_PATHS = [
-    "./.tmp/kb/blender_python_reference_5_1",
-    "./.tmp/kb/blender_open_shader_lang_5_1",
-    "./.tmp/kb/blender_templates_5_1",
+    # "./data/raw/blender_python_reference_5_1",
+    # "./data/raw/blender_open_shader_lang_5_1",
+    # "./data/raw/blender_templates_5_1",
+    # "./data/raw/blender_code_samples_5_1",
+    "./data/raw",
 ]
 CLEAN_ALG = "traf"
 BATCH_SIZE = 50
+ARCHIVE_PATH = "./data/archive/raw"
+STATE_FILE_NAME = "ingestion_state.json"
 
 [tool.blender_kb_mcp.formats]
 ENABLE_MARKDOWN = true
