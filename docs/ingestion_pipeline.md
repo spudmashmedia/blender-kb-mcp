@@ -34,6 +34,11 @@ stateDiagram-v2
 6. documents from ```/data/raw``` are migrated 1 by 1 after processing to ```/data/archive/raw```. (*Note: the folder structure the files belong in are retained)
 
 ## Getting Started
+### Ollama
+We need Ollama hosted locally with the embedding model Qwen3-embedding:0.6b pulled - as of this moment it uses MLX on MacOS which is hitting Apple Silicon GPUs.
+
+We could use the Ollama Service in a docker container except Docker is CPU bound and creating embeddings is super slow in comparison.
+
 ### Pipeline Initialisation
 To start, we need our pipeline processing folders created so at the root of the project  run the script:
 
@@ -162,3 +167,7 @@ data
 
 ## Completion
 Well done for making it this far! You're about to bolt on another lobe onto your LLM/Agent harness. Move onto the MCP Server section.
+
+---
+Spudmash Media [-] 2026
+
