@@ -18,6 +18,7 @@ Docker Services Include:
 - [Prequisite Before Starting](/docs/prerequisite.md)
 - [Ingestion Pipeline](/docs/ingestion_pipeline.md)
 - [MCP Server](/docs/mcp_server.md)
+- [Setup Tooling](/docs/setup_tooling.md)
   
 # Documentation
   
